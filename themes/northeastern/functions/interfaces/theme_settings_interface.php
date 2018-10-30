@@ -1,6 +1,6 @@
 <?php
 
-  // this is the include file to hold the HTML for the settings view
+  // this is the include file to hold the HTML for the theme settings view
 
 ?>
 
@@ -29,6 +29,11 @@
     <p>Click the button below to save your changes.</p>
     <?php submit_button(); ?>
     <hr />
+    <h2>Brand Guide</h2>
+    <div id="nu_settings-help">
+      For more information on the university brand system and it use, please visit the <a href="https://brand.northeastern.edu" title="Northeastern University Brand System" target="_blank">online brand site</a>.
+    </div>
+    <br />
     <h2>Need Help?</h2>
     <div id="nu_settings-help">
       If you need help or something isn't working please <a href="mailto:nudev@northeastern.edu?subject=NU Theme Settings Help">contact us</a>.

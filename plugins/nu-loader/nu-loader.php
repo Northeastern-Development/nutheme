@@ -19,40 +19,43 @@ class NUModuleLoader{
       ,$brandLibrary
       ,$activeComponentSource
       ,$debugMode
-      ,$debugUrl;
+      ,$debugUrl
+      ,$errorOn;
 
   // initialize
   function __construct(){
 
-    // echo 'THIS PAGE: '.$_GET['page'];
-    // print_r(vardump);
-    // var_dump($_GET);
+    $this->errorOn = false;
     $this->debugMode = false;
     $this->debugUrl = 'http://sandbox.local/globalheaderfooter';
 
     // let's read in the remote config JSON file
-    $this->brandLibrary = json_decode(wp_remote_get('https://brand.northeastern.edu/global/components/config/library.json')['body']);
+    $configJson = wp_remote_get('https://brand.northeastern.edu/global/components/config/library.json');
 
-    $this->resourcesUrl = array($this->brandLibrary->config->sourceurl);
+    if(!is_wp_error($configJson)){  // we do NOT have a wordpress error as the returned value, so let's do this
+      $this->brandLibrary = json_decode($configJson['body']);
 
-    if(is_admin()){ // this is a back-end page request only (so it can be a little slower)
-      // check the page templates and other resources to make sure that we have everything that we need in place
-      if(null !== get_option('global_header') && get_option('global_header') == 'on'){
-        $this->checkCustomHook('/header.php','?><header','<header','<?php if(function_exists("NUML_globalheader")){NUML_globalheader();} ?><header');
+      $this->resourcesUrl = array($this->brandLibrary->config->sourceurl);
+
+      if(is_admin()){ // this is a back-end page request only (so it can be a little slower)
+        // check the page templates and other resources to make sure that we have everything that we need in place
+        if(null !== get_option('global_header') && get_option('global_header') == 'on'){
+          $this->checkCustomHook('/header.php','?><header','<header','<?php if(function_exists("NUML_globalheader")){NUML_globalheader();} ?><header');
+        }
+        if(null !== get_option('global_footer') && get_option('global_footer') == 'on'){
+
+          $this->checkCustomHook('/footer.php','</footer><?php','</footer>','</footer><?php if(function_exists("NUML_globalfooter")){NUML_globalfooter();} ?>');
+        }
+
+        $this->admin_tools(); // add the tools to manage settings
+
+      }else if(!is_admin()){ // this is a front-end request, so build out any front-end components needed
+        $this->frontend();
       }
-      if(null !== get_option('global_footer') && get_option('global_footer') == 'on'){
-
-        // require_once('components/footer.php');
-
-        $this->checkCustomHook('/footer.php','</footer><?php','</footer>','</footer><?php if(function_exists("NUML_globalfooter")){NUML_globalfooter();} ?>');
-      }
-
-      $this->admin_tools(); // add the tools to manage settings
-
-    }else if(!is_admin()){ // this is a front-end request, so build out any front-end components needed
-      $this->frontend();
+    }else{
+      $this->errorOn = true;
+      parent::__construct();  // call the constructor again until we get everything set up and working as it should be
     }
-
   }
 
 
@@ -153,7 +156,6 @@ class NUModuleLoader{
 
   // add the footer styles to the header
   function nu_footerstyles(){
-    // echo 'DEBUG MODE: '.$this->debugMode;
     if(!$this->debugMode){  // we are not in debug mode
       echo '<link  rel="stylesheet" id="global-footer-style-css"  href="'.$this->resourcesUrl[0].'/nuglobalutils/common/css/footer.css" /> ';
     }else{  // we are in debug mode
@@ -197,18 +199,17 @@ class NUModuleLoader{
 
   // this function performs the actual remote content request and returns only the body value
   private function getRemoteContent($a=''){
-    if(!$this->debugMode){  // we are not in debug mode
-
-      // echo $this->resourcesUrl[0].$a;
-
-      $return = wp_remote_get($this->resourcesUrl[0].$a);
-    }else{  // we are in debug mode
-      $return = wp_remote_get('http://newnu.local/'.$a);
-    }
-    if(!is_wp_error($return['body'])){
-      return $return['body'];
-    }else{
-      return 'ERROR: the remote content could not be returned.';
+    if(!$this->errorOn){  // make sure that we do not have a random error blocking us for any reason
+      if(!$this->debugMode){  // we are not in debug mode
+        $return = wp_remote_get($this->resourcesUrl[0].$a);
+      }else{  // we are in debug mode
+        $return = wp_remote_get('http://newnu.local/'.$a);
+      }
+      if(!is_wp_error($return['body'])){
+        return $return['body'];
+      }else{
+        return 'ERROR: the remote content could not be returned.';
+      }
     }
   }
 
